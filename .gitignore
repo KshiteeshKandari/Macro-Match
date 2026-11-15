@@ -1,0 +1,11 @@
+# Claude Code / editor-local config — not part of the shipped game
+.claude/
+.vscode/
+.idea/
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Formatting tooling (fetched on demand via npx; never installed locally)
+node_modules/

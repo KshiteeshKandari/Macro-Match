@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Macro Match</title>
+    <meta
+      name="description"
+      content="A quick game that teaches you the nutrition facts of everyday foods."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A5%91%3C/text%3E%3C/svg%3E"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a id="home-link" class="brand" href="#">Macro Match</a>
+      <button
+        id="help-btn"
+        class="help-btn"
+        type="button"
+        aria-haspopup="dialog"
+      >
+        Help
+      </button>
+    </header>
+
+    <dialog id="help-dialog" class="help-dialog" aria-labelledby="help-title">
+      <h2 id="help-title">How to play</h2>
+      <p>
+        <strong>More / Less:</strong> two foods, numbers hidden. Click the one
+        you think has more. One miss and it's over. Each correct pick scores
+        100–200 (more for close calls), and your streak multiplies it up to ×2.
+      </p>
+      <p>
+        <strong>Guess the Value:</strong> type your best guess for 5 foods.
+        Points curve with accuracy: 10% off earns about 810, 50% off only 250.
+        Within 15% adds a bonus, within 5% a bigger one, and an exact guess
+        +500. Stay within 20% on back-to-back foods for a ×1.25, then ×1.5 hot
+        streak.
+      </p>
+      <p>
+        <strong>Cuisines:</strong> pick a cuisine on the setup screen to play
+        with whole dishes. Tap the <em>i</em> on a high fat, carb, sodium or
+        sugar dish for lighter ways to cook it.
+      </p>
+      <p>All numbers are for a typical serving, shown on every card.</p>
+      <form method="dialog">
+        <button class="btn btn-primary" value="close">Got it</button>
+      </form>
+    </dialog>
+
+    <main id="app" tabindex="-1">
+      <section class="screen center" id="boot">
+        <h1>Macro Match</h1>
+        <p>Loading&hellip;</p>
+        <p class="boot-hint">
+          If this message stays, the page was opened as a file. Run
+          <code>serve.ps1</code> and visit <code>http://localhost:8080/</code>.
+        </p>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      Values are approximate and for entertainment and education, not medical
+      advice.
+    </footer>
+
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>
