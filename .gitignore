@@ -1,5 +1,6 @@
 # Claude Code / editor-local config — not part of the shipped game
 .claude/
+CLAUDE.md
 .vscode/
 .idea/
 
