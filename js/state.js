@@ -2,6 +2,7 @@
 // (private windows, blocked storage), so everything is wrapped in try/catch
 // and the game works fine without it.
 import { CUISINES, GROUPS, NUTRIENTS, nutrientsForGroups } from "./data.js";
+import { todayKey } from "./util/daily.js";
 
 const KEY = "macroMatch.v1";
 const defaults = () => ({
@@ -11,7 +12,18 @@ const defaults = () => ({
   groups: GROUPS.filter((g) => g.default).map((g) => g.id),
   cuisines: CUISINES.map((c) => c.id),
   stats: {},
+  dailies: {},
 });
+
+// Keep only well-formed { date, ... } records.
+function cleanDailies(raw) {
+  const out = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const [mode, rec] of Object.entries(raw)) {
+    if (rec && typeof rec.date === "string") out[mode] = rec;
+  }
+  return out;
+}
 
 // Keep only well-formed { asked, missed } numbers for known nutrients.
 function cleanStats(raw) {
@@ -60,6 +72,7 @@ function read() {
         ? saved.cuisines.filter((c) => CUISINES.some((x) => x.id === c))
         : d.cuisines,
     stats: cleanStats(saved.stats),
+    dailies: cleanDailies(saved.dailies),
   };
   return memory;
 }
@@ -92,6 +105,16 @@ export const store = {
     write();
   },
   enabledNutrients: () => nutrientsForGroups(read().groups),
+  // Today's daily record for a mode, or null if not played yet today.
+  getDaily(mode) {
+    const rec = read().dailies[mode];
+    return rec && rec.date === todayKey() ? rec : null;
+  },
+  // Locks today's daily for a mode with its result summary.
+  completeDaily(mode, result) {
+    read().dailies[mode] = { date: todayKey(), ...result };
+    write();
+  },
   // Returns true if this beat the previous best.
   submitBest(field, value) {
     const s = read();

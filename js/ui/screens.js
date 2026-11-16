@@ -18,6 +18,7 @@ import {
   weakest,
 } from "../stats.js";
 import { makeRng } from "../util/rng.js";
+import { dailySeed } from "../util/daily.js";
 import { countUp, formatNumber, formatValue } from "../util/format.js";
 import {
   gapOf,
@@ -200,11 +201,68 @@ export function showSelect(ctx) {
     );
   });
 
+  const bulkBtn = (label, onclick) =>
+    h("button", { class: "link-btn", type: "button", onclick }, label);
+
+  const nutrientHead = h(
+    "div",
+    { class: "section-head" },
+    h("h2", { class: "section-title" }, "Nutrients to include"),
+    h(
+      "div",
+      { class: "bulk-actions" },
+      bulkBtn("Select all", () => {
+        ctx.store.setGroups(GROUPS.map((g) => g.id));
+        showSelect(ctx);
+      }),
+      bulkBtn("Deselect all", () => {
+        ctx.store.setGroups([GROUPS[0].id]);
+        showSelect(ctx);
+      }),
+    ),
+  );
+
+  const cuisineHead = h(
+    "div",
+    { class: "section-head" },
+    h("h2", { class: "section-title" }, "Cuisines"),
+    h(
+      "div",
+      { class: "bulk-actions" },
+      bulkBtn("Select all", () => {
+        ctx.store.setCuisines(CUISINES.map((c) => c.id));
+        showSelect(ctx);
+      }),
+      bulkBtn("Deselect all", () => {
+        ctx.store.setCuisines([CUISINES[0].id]);
+        showSelect(ctx);
+      }),
+    ),
+  );
+
   mount(
     h(
       "section",
       { class: "screen" },
       h("h1", { tabindex: "-1", "data-focus": true }, "Choose a mode"),
+      h("h2", { class: "section-title" }, "Today's challenge"),
+      h(
+        "div",
+        { class: "mode-grid" },
+        dailyModeCard(
+          ctx,
+          "hl",
+          "More / Less",
+          "Same puzzle as everyone today — one attempt.",
+        ),
+        dailyModeCard(
+          ctx,
+          "guess",
+          "Guess the Value",
+          "Same 5 foods as everyone today — one attempt.",
+        ),
+      ),
+      h("h2", { class: "section-title" }, "Freeplay"),
       h(
         "div",
         { class: "mode-grid" },
@@ -219,9 +277,9 @@ export function showSelect(ctx) {
           () => startMode(ctx, "guess"),
         ),
       ),
-      h("h2", { class: "section-title" }, "Cuisines"),
+      cuisineHead,
       h("div", { class: "chips" }, cuisineChips),
-      h("h2", { class: "section-title" }, "Nutrients to include"),
+      nutrientHead,
       h("div", { class: "chips" }, chips),
       note,
     ),
@@ -237,6 +295,37 @@ function modeCard(title, text, onclick) {
   );
 }
 
+// A mode card that either starts today's daily (if not played yet) or shows
+// today's locked-in result (if it's already been played).
+function dailyModeCard(ctx, mode, title, text) {
+  const rec = ctx.store.getDaily(mode);
+  if (!rec) {
+    return h(
+      "button",
+      {
+        class: "mode-card",
+        onclick: () => startMode(ctx, mode, { daily: true }),
+      },
+      h("span", { class: "mode-title" }, title),
+      h("span", { class: "mode-text" }, text),
+    );
+  }
+  const resultText =
+    mode === "hl"
+      ? `${rec.score.toLocaleString("en-US")} pts, streak ${rec.streak}`
+      : `${rec.score.toLocaleString("en-US")} pts`;
+  return h(
+    "div",
+    { class: "mode-card done" },
+    h("span", { class: "mode-title" }, `✓ ${title}`),
+    h(
+      "span",
+      { class: "mode-text" },
+      `Done for today — ${resultText}. New one tomorrow.`,
+    ),
+  );
+}
+
 // Foods for the cuisines currently switched on (falls back to everything if the pool is tiny).
 export function poolFor(ctx) {
   const on = new Set(ctx.store.get().cuisines);
@@ -244,16 +333,16 @@ export function poolFor(ctx) {
   return pool.length >= 10 ? pool : ctx.foods;
 }
 
-export function startMode(ctx, mode) {
+export function startMode(ctx, mode, opts = {}) {
   ctx.lastMode = mode;
-  if (mode === "hl") playHigherLower(ctx);
-  else playGuess(ctx);
+  if (mode === "hl") playHigherLower(ctx, opts);
+  else playGuess(ctx, opts);
 }
 
 /* ---------------------------------------------------------- More/Less */
 
-export function playHigherLower(ctx) {
-  const rng = makeRng();
+export function playHigherLower(ctx, { daily = false } = {}) {
+  const rng = makeRng(daily ? dailySeed("hl") : undefined);
   const nutrients = ctx.store.enabledNutrients();
   const prevBest = ctx.store.get().bestStreak;
   const run = {
@@ -350,7 +439,7 @@ export function playHigherLower(ctx) {
           onclick: () =>
             correct
               ? nextRound()
-              : showResults(ctx, hlSummary(ctx, run, prevBest)),
+              : showResults(ctx, hlSummary(ctx, run, prevBest, daily)),
         },
         correct ? "Next" : "See results",
       );
@@ -416,7 +505,7 @@ export function playHigherLower(ctx) {
   nextRound();
 }
 
-function hlSummary(ctx, run, prevBest) {
+function hlSummary(ctx, run, prevBest, daily = false) {
   const wrong = run.log.filter((r) => !r.correct);
   const right = run.log.filter((r) => r.correct).sort((x, y) => x.gap - y.gap);
   const recap = [...wrong, ...right].slice(0, 3).map((r) => ({
@@ -427,6 +516,8 @@ function hlSummary(ctx, run, prevBest) {
   }));
   const prevScore = ctx.store.get().bestHlScore;
   const newBest = ctx.store.submitBest("bestHlScore", run.score);
+  if (daily)
+    ctx.store.completeDaily("hl", { score: run.score, streak: run.streak });
   return {
     heading: run.streak === 0 ? "Not this time" : "Run over",
     big: run.score.toLocaleString("en-US"),
@@ -434,6 +525,7 @@ function hlSummary(ctx, run, prevBest) {
     best: Math.max(prevScore, run.score),
     bestLabel: "Best duel score",
     newBest,
+    daily,
     recap,
     sequence: run.sequence,
     misses: run.misses,
@@ -443,8 +535,8 @@ function hlSummary(ctx, run, prevBest) {
 
 /* -------------------------------------------------------- Guess the Value */
 
-export function playGuess(ctx) {
-  const rng = makeRng();
+export function playGuess(ctx, { daily = false } = {}) {
+  const rng = makeRng(daily ? dailySeed("guess") : undefined);
   const rounds = buildRounds({
     foods: poolFor(ctx),
     nutrients: ctx.store.enabledNutrients(),
@@ -552,7 +644,7 @@ export function playGuess(ctx) {
               i += 1;
               draw();
             } else {
-              showResults(ctx, guessSummary(ctx, log, total, prevBest));
+              showResults(ctx, guessSummary(ctx, log, total, prevBest, daily));
             }
           },
         },
@@ -627,8 +719,9 @@ export function playGuess(ctx) {
   draw();
 }
 
-function guessSummary(ctx, log, total, prevBest) {
+function guessSummary(ctx, log, total, prevBest, daily = false) {
   const newBest = ctx.store.submitBest("bestScore", total);
+  if (daily) ctx.store.completeDaily("guess", { score: total });
   const max = maxTotal(log.length);
   const recap = [...log]
     .sort((x, y) => y.pctError - x.pctError)
@@ -648,6 +741,7 @@ function guessSummary(ctx, log, total, prevBest) {
           : "Room to learn",
     big: total.toLocaleString("en-US"),
     bigLabel: `out of ${max.toLocaleString("en-US")}`,
+    daily,
     best: Math.max(prevBest, total),
     bestLabel: "Best score",
     newBest,
@@ -919,6 +1013,13 @@ export function showResults(ctx, sum) {
       "section",
       { class: "screen center" },
       h("h1", { tabindex: "-1", "data-focus": true }, sum.heading),
+      sum.daily
+        ? h(
+            "p",
+            { class: "daily-note" },
+            "✓ Today's daily is locked in — a new one tomorrow.",
+          )
+        : null,
       h(
         "div",
         { class: "big-score" },
